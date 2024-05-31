@@ -103,6 +103,9 @@ static
 bool _invert = false;
 
 static
+char my_hostname[1024];
+
+static
 void _usage(const char *appname)
 {
     DEC_MSG(SEV_INFO, "USAGE", "%s -I [interpolate] -D [decimate] -F [filter file] -d [sample_debug_file] -S [input sample rate] -f [center freq] [-c] [-o output JSON file] [-b] [-i] [in_fifo]",
@@ -191,10 +194,10 @@ aresult_t _on_flex_alnum_msg(
 
     fprintf(out_file, "{\"proto\":\"flex\",\"type\":\"alphanumeric\",\"timestamp\":\"%04i-%02i-%02i %02i:%02i:%02i UTC\","
             "\"baud\":%i,\"syncLevel\":%i,\"frameNo\":%u,\"cycleNo\":%u,\"phaseNo\":\"%c\",\"capCode\":%"PRIu64",\"fragment\":%s,"
-            "\"maildrop\":%s,\"fragSeq\":%u,\"freq_hz\":%u,\"message\":\"",
+            "\"maildrop\":%s,\"fragSeq\":%u,\"freq_hz\":%u,\"hostname\":\"%s\",\"message\":\"",
             gmt->tm_year + 1900, gmt->tm_mon + 1, gmt->tm_mday, gmt->tm_hour, gmt->tm_min, gmt->tm_sec,
             baud, 0, frame_no, cycle_no, phase_id[phase], cap_code,
-            fragmented ? "true" : "false", maildrop ? "true" : "false", seq_num, freq_hz);
+            fragmented ? "true" : "false", maildrop ? "true" : "false", seq_num, freq_hz, my_hostname);
 
     for (size_t i = 0; i < message_len; i++) {
         _decoder_put_alnum_char(out_file, message_bytes[i]);
@@ -224,9 +227,9 @@ aresult_t _on_flex_num_msg(
 
     fprintf(out_file, "{\"proto\":\"flex\",\"type\":\"numeric\",\"timestamp\":\"%04i-%02i-%02i %02i:%02i:%02i UTC\","
             "\"baud\":%i,\"syncLevel\":%i,\"frameNo\":%u,\"cycleNo\":%u,\"phaseNo\":\"%c\",\"capCode\":%"PRIu64","
-	    "\"freq_hz\":%u,\"message\":\"",
+	    "\"freq_hz\":%u,\"hostname\":\"%s\",\"message\":\"",
             gmt->tm_year + 1900, gmt->tm_mon + 1, gmt->tm_mday, gmt->tm_hour, gmt->tm_min, gmt->tm_sec,
-            baud, 0, frame_no, cycle_no, phase_id[phase], cap_code, freq_hz);
+            baud, 0, frame_no, cycle_no, phase_id[phase], cap_code, freq_hz, my_hostname);
 
     for (size_t i = 0; i < message_len; i++) {
         _decoder_put_alnum_char(out_file, message_bytes[i]);
@@ -257,9 +260,9 @@ aresult_t _on_flex_siv_msg(
     switch (siv_msg_type) {
     case PAGER_FLEX_SIV_TEMP_ADDRESS_ACTIVATION:
         fprintf(out_file, "{\"proto\":\"flex\",\"type\":\"tempAddrActivation\",\"timestamp\":\"%04i-%02i-%02i %02i:%02i:%02i UTC\","
-                "\"baud\":%i,\"syncLevel\":%i,\"frameNo\":%u,\"cycleNo\":%u,\"phaseNo\":\"%c\",\"capCode\":%"PRIu64",\"startFrameNo\":%u,\"tempAddressId\":%u,\"freq_hz\":%u}\n",
+                "\"baud\":%i,\"syncLevel\":%i,\"frameNo\":%u,\"cycleNo\":%u,\"phaseNo\":\"%c\",\"capCode\":%"PRIu64",\"startFrameNo\":%u,\"tempAddressId\":%u,\"freq_hz\":%u,\"hostname\":\"%s\"}\n",
                 gmt->tm_year + 1900, gmt->tm_mon + 1, gmt->tm_mday, gmt->tm_hour, gmt->tm_min, gmt->tm_sec,
-                baud, 0, frame_no, cycle_no, phase_id[phase], cap_code, data & 0x7f, (data >> 7) & 0xf, freq_hz);
+                baud, 0, frame_no, cycle_no, phase_id[phase], cap_code, data & 0x7f, (data >> 7) & 0xf, freq_hz, my_hostname);
         break;
     }
     return A_OK;
@@ -280,9 +283,9 @@ aresult_t _on_pocsag_alnum_msg(
     struct tm *gmt = gmtime(&now);
 
     fprintf(out_file, "{\"proto\":\"pocsag\",\"type\":\"alphanumeric\",\"timestamp\":\"%04i-%02i-%02i %02i:%02i:%02i UTC\","
-            "\"baud\":%i,\"capCode\":%u,\"function\":%u,\"freq_hz\":%u,\"message\":\"",
+            "\"baud\":%i,\"capCode\":%u,\"function\":%u,\"freq_hz\":%u,\"hostname\",\"%s\",\"message\":\"",
             gmt->tm_year + 1900, gmt->tm_mon + 1, gmt->tm_mday, gmt->tm_hour, gmt->tm_min, gmt->tm_sec,
-            baud_rate, capcode, (unsigned)function, freq_hz);
+            baud_rate, capcode, (unsigned)function, freq_hz, my_hostname);
 
     for (size_t i = 0; i < data_len; i++) {
         _decoder_put_alnum_char(out_file, data[i]);
@@ -309,9 +312,9 @@ aresult_t _on_pocsag_num_msg(
     struct tm *gmt = gmtime(&now);
 
     fprintf(out_file, "{\"proto\":\"pocsag\",\"type\":\"numeric\",\"timestamp\":\"%04i-%02i-%02i %02i:%02i:%02i UTC\","
-            "\"baud\":%i,\"capCode\":%u,\"function\":%u,\"freq_hz\":%u,\"message\":\"",
+            "\"baud\":%i,\"capCode\":%u,\"function\":%u,\"freq_hz\":%u,\"hostname\":\"%s\",\"message\":\"",
             gmt->tm_year + 1900, gmt->tm_mon + 1, gmt->tm_mday, gmt->tm_hour, gmt->tm_min, gmt->tm_sec,
-            baud_rate, capcode, (unsigned)function, freq_hz);
+            baud_rate, capcode, (unsigned)function, freq_hz, my_hostname);
 
     for (size_t i = 0; i < data_len; i++) {
         _decoder_put_alnum_char(out_file, data[i]);
@@ -684,6 +687,12 @@ int main(int argc, char * const argv[])
 
     TSL_BUG_IF_FAILED(app_init("resampler", NULL));
     TSL_BUG_IF_FAILED(app_sigint_catch(NULL));
+
+    memset(my_hostname, 0, sizeof(my_hostname));
+    if(gethostname(my_hostname, sizeof(my_hostname)-1)) {
+	DEC_MSG(SEV_FATAL, "HOSTNAME", "Failed to read local hostname, aborting.");
+	goto done;
+    }
 
     _set_options(argc, argv);
 
