@@ -27,7 +27,8 @@ aresult_t _test_flex_on_message_simple_cb(
         bool maildrop,
         uint8_t seq_num,
         const char *message_bytes,
-        size_t message_len)
+        size_t message_len,
+        uint32_t freq_hz)
 {
     return A_OK;
 }
@@ -41,7 +42,8 @@ aresult_t _test_flex_on_num_message_simple_cb(
         uint8_t frame_no,
         uint64_t cap_code,
         const char *message_bytes,
-        size_t message_len)
+        size_t message_len,
+        uint32_t freq_hz)
 {
     return A_OK;
 }

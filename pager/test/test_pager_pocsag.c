@@ -170,7 +170,8 @@ aresult_t _test_pocsag_on_message_simple_cb(
         uint32_t capcode,
         const char *data,
         size_t data_len,
-        uint8_t function)
+        uint8_t function,
+        uint32_t freq_hz)
 {
     fprintf(stderr, "POCSAG%u: ALN(%u): [%8u]: %s\n", (unsigned)baud_rate, (unsigned)function, capcode, data);
     hexdump_dump_hex(data, data_len);
@@ -184,7 +185,8 @@ aresult_t _test_pocsag_on_num_message_simple_cb(
         uint32_t capcode,
         const char *data,
         size_t data_len,
-        uint8_t function)
+        uint8_t function,
+        uint32_t freq_hz)
 {
     fprintf(stderr, "POCSAG%u: NUM(%u): [%8u]: %s\n", (unsigned)baud_rate, function, capcode, data);
     return A_OK;
